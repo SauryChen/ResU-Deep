@@ -17,6 +17,7 @@ import copy
 
 from Unet_res_up import Unet_Res_up
 from read_nc_15_19 import load_variables
+from tools import train, validation, test
 
 locs = [
     [30, 0, 64, 134],
@@ -106,116 +107,6 @@ def create_dataloader(locs, time_length, flag, labels, batch_size):
     return dataloader
 
 
-def train(net, epoch, optimizer):
-    net.train()
-    loss = 0
-
-    for batch_idx, (features, labels) in enumerate(trainloader):
-        
-        features = features.float()
-        labels = labels.float()
-        
-        features = features.to(device)
-        labels = labels.to(device)
-        
-        features, labels = Variable(features), Variable(labels)
-        optimizer.zero_grad()
-        
-        pred = net(features)
-        
-        #loss = F.binary_cross_entropy_with_logits(pred, labels)
-        
-        # BCE loss
-        #loss_func = torch.nn.BCELoss(reduction = 'mean')
-        #labels = labels.unsqueeze(1)
-        #loss = loss_func(pred, labels)
-
-        #loss = weighted_BCE(pred, labels, reduction = 'mean')
-
-        # Focal loss
-        #loss_func = FocalLoss(alpha=0.25, gamma=2, size_average=True)
-        #loss = loss_func(pred, labels)
-        
-        loss.backward()
-        optimizer.step()
-        
-        if batch_idx % 20 == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss:{: .4f}'.format(
-            epoch, batch_idx*len(features), len(trainloader.dataset), \
-            100*batch_idx/len(trainloader), loss))
-
-    return net
-
-def validation(net, total_validation_loss):
-    net.eval()
-    validation_loss = 0
-    count = 0
-    with torch.no_grad():
-        for (features, labels) in valloader:
-            count += 1
-            
-            labels = labels.float()
-            features = features.float()
-            features = features.to(device)
-            labels = labels.to(device)
-
-            features, labels = Variable(features), Variable(labels)
-            pred_validation = net(features)
-
-            #test_loss += F.binary_cross_entropy_with_logits(pred, labels).item()
-            
-            # BCE loss
-            #loss_func = nn.BCELoss(reduction = 'sum')
-            #labels = labels.unsqueeze(1)
-            #validation_loss += loss_func(pred_validation, labels).item()
-            #loss = weighted_BCE(pred, labels, reduction = 'mean')
-            
-        validation_loss /= len(valloader.dataset)
-        total_validation_loss.append(validation_loss)
-        print('Validation set: Average loss: {:.4f}'.format(validation_loss))
-        print('\n')
-    return validation_loss, total_validation_loss
-
-def test(model, epoch):
-    model.eval()
-    count = 0
-    test_loss = 0
-    with torch.no_grad():
-        for (features, labels) in testloader:
-            count += 1
-            features = features.float()
-            features = features.to(device)
-            labels = labels.float()
-            labels = labels.to(device)
-            
-            features, labels = Variable(features), Variable(labels)
-            pred_test = model(features)
-            
-            #test_loss += F.binary_cross_entropy_with_logits(pred, labels).item()
-            
-            # BCE loss
-            #loss_func = nn.BCELoss(reduction = 'sum')
-            #labels = labels.unsqueeze(1)
-            #test_loss += loss_func(pred_test, labels).item()
-            #loss = weighted_BCE(pred, labels, reduction = 'mean')
-            
-            # to CPU
-            pred_test = pred_test.cpu().detach().numpy()
-            labels = labels.cpu().detach().numpy()
-            
-            if (count == 1):
-                total_pred_test = pred_test
-                total_label = labels
-            elif (count > 1):
-                total_pred_test = np.concatenate((total_pred_test,pred_test),axis=0)
-                total_label = np.concatenate((total_label, labels), axis=0)
-
-        test_loss /= len(testloader.dataset)
-        print('Test set: Average loss: {:.4f}'.format(test_loss))
-    
-    print("Converting to numpy has the shape: ", total_pred_test.shape)
-    np.save('/ceph-data/cmx/ERA5_15_19/major_revision_experiments/global_model_results/total_pred_test_{}.npy'.format(str(epoch)), total_pred_test)
-    return total_pred_test, total_label
 
 def class_metric(model, epoch):
     print(">>>>>>>>>> test with sklearn classification report. <<<<<<<<<<")
